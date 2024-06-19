@@ -1,21 +1,46 @@
 ---
+- name: Print all available facts
+  ansible.builtin.debug:
+    var: ansible_facts
+
 - name: Install tfenv
-  become_user: "{{ tfenv_user }}"
   block:
-  - name: Clone tfenv repository to home directory
+  - name: Get Jenkins user's home directory
+    shell: "getent passwd {{ tfenv_user }} | cut -d: -f6"
+    register: jenkins_home
+    changed_when: false
+
+  - name: Debug Jenkins home directory
+    debug:
+      msg: "Jenkins home directory is {{ jenkins_home.stdout }}"  
+
+  - name: Clone tfenv repository
+    ignore_errors: true
     git:
       repo: https://github.com/tfutils/tfenv.git
-      dest: "/home/{{ tfenv_user }}/.tfenv"
-      depth: 1
+      dest: "{{ jenkins_home.stdout }}/.tfenv"
       version: master
-  - name: Chmod
-    ansible.builtin.file:
-      path: "/home/{{ tfenv_user }}/.tfenv"
+
+  - name: Change ownership of .tfenv directory
+    file:
+      path: "{{ jenkins_home.stdout }}/.tfenv"
       state: directory
-      mode: '0755'
-  - name: Ensure the tfenv path is in .bash_profile
+      recurse: true
+      owner: "{{ tfenv_user }}"
+      group: "{{ tfenv_user }}"
+
+  - name: Ensure the tfenv path is in .bashrc
+    when: ansible_facts['user_shell'] == '/bin/bash'
     lineinfile:
-      path: "/home/{{ tfenv_user }}/.bashrc"
+      path: "{{ jenkins_home.stdout }}/.bashrc"
       line: 'export PATH="$HOME/.tfenv/bin:$PATH"'
-      create: yes
-    state: link
+      create: true
+      state: present
+
+  - name: Ensure the tfenv path is in .zshrc
+    when: ansible_facts['user_shell'] == '/bin/zsh'
+    lineinfile:
+      path: "{{ jenkins_home.stdout }}/.zshrc"
+      line: 'export PATH="$HOME/.tfenv/bin:$PATH"'
+      create: true
+      state: present
