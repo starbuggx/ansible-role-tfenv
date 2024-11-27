@@ -38,9 +38,6 @@
       state: present
 
   - name: Ensure the tfenv path is in .zshrc
-    when: 
-      - ansible_facts['user_shell'] == '/bin/zsh'
-      - ansible_facts['user_shell'] == '/usr/bin/zsh'
     lineinfile:
       path: "{{ jenkins_home.stdout }}/.zshrc"
       line: 'export PATH="$HOME/.tfenv/bin:$PATH"'
